@@ -5,27 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Setlist Pro</title>
     
-    <!-- Metadados para Compartilhamento (Redes Sociais/WhatsApp) -->
+    <!-- Metadados de Compartilhamento (Open Graph / WhatsApp / Redes Sociais) -->
     <meta property="og:title" content="Setlist Pro">
-    <meta property="og:description" content="Gerenciador de repertório e teleprompter para bandas.">
+    <meta property="og:description" content="Gerenciador de repertório e letras para músicos.">
     <meta property="og:type" content="website">
-    <!-- O ícone dinâmico é injetado via JS abaixo -->
+    <meta property="og:site_name" content="Setlist Pro App">
+    <meta property="og:image" content="./icon.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="./icon.png">
 
-    <!-- Configuração do PWA e Ícone -->
+    <!-- Configuração do PWA e Ícone Interno -->
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script>
         const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a1a1a" /><stop offset="100%" stop-color="#000000" /></linearGradient></defs><rect width="512" height="512" rx="120" fill="url(#bg)"/><path d="M160 120 h130 l70 70 v200 a20 20 0 0 1 -20 20 h-180 a20 20 0 0 1 -20 -20 v-250 a20 20 0 0 1 20 -20 z" fill="#111" stroke="#00e676" stroke-width="24"/><text x="256" y="250" font-family="sans-serif" font-weight="900" font-size="72" fill="#ffffff" text-anchor="middle">SET</text><text x="256" y="320" font-family="sans-serif" font-weight="900" font-size="72" fill="#00e676" text-anchor="middle">LIST</text></svg>`;
         const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
-        
-        // Favicons e Apple Icons
         const linkIcon = document.createElement('link'); linkIcon.rel = 'icon'; linkIcon.href = iconUrl; document.head.appendChild(linkIcon);
         const appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = iconUrl; document.head.appendChild(appleIcon);
-        
-        // Força a imagem de compartilhamento OG (Alguns sistemas aceitam base64)
-        const ogImage = document.createElement('meta'); ogImage.setAttribute('property', 'og:image'); ogImage.content = iconUrl; document.head.appendChild(ogImage);
-
         const manifest = { name: "Setlist Pro", short_name: "Setlist", start_url: window.location.href, display: "standalone", background_color: "#000000", theme_color: "#00e676", icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml" }] };
         const linkManifest = document.createElement('link'); linkManifest.rel = 'manifest'; linkManifest.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'})); document.head.appendChild(linkManifest);
     </script>
@@ -130,6 +130,7 @@
             background: var(--primary-grad); color: #000; font-weight: 900; font-size: 1.2rem; 
             cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
         }
+        .btn-go:disabled { opacity: 0.7; cursor: wait; }
 
         /* --- TELA DE PALCO --- */
         #app-content { display: none; width: 100%; height: 100%; position: relative; }
@@ -257,7 +258,7 @@
     <!-- EDITOR MODAL -->
     <div id="editor-modal">
         <button class="btn-search-web" id="btn-search-web">🔍 Buscar Letra na Web</button>
-        <textarea id="editor-input" placeholder="Cole aqui a letra ou informações..."></textarea>
+        <textarea id="editor-input" placeholder="Digite aqui suas Notas"></textarea>
         <div class="edit-btns">
             <button class="fs-action-btn btn-close" onclick="document.getElementById('editor-modal').style.display='none'">Cancelar</button>
             <button class="fs-action-btn btn-edit" id="editor-save-btn">Guardar</button>
@@ -267,6 +268,7 @@
     <div id="toast">Msg</div>
 
     <script>
+        const apiKey = ""; // Chave fornecida pelo ambiente
         let showData = { title: "", songs: [] };
         let currentIndex = 0;
         let wakeLock = null;
@@ -287,6 +289,7 @@
         const menuList = document.getElementById('menu-list');
         const micToggle = document.getElementById('mic-toggle');
         const micStatusLabel = document.getElementById('mic-status-label');
+        const btnStart = document.getElementById('btn-start');
 
         // --- GESTOS DE SWIPE ---
         let touchstartX = 0;
@@ -298,14 +301,14 @@
                 if (currentIndex < showData.songs.length - 1) {
                     currentIndex++;
                     updatePalco();
-                    openFS(activeMode);
+                    if(fsUI.style.display === 'flex') openFS(activeMode);
                 }
             }
             if (touchendX > touchstartX + threshold) {
                 if (currentIndex > 0) {
                     currentIndex--;
                     updatePalco();
-                    openFS(activeMode);
+                    if(fsUI.style.display === 'flex') openFS(activeMode);
                 }
             }
         }
@@ -395,7 +398,7 @@
             const song = showData.songs[currentIndex];
             document.getElementById('fs-song-name').innerHTML = song.name;
             const content = mode === 'lyrics' ? song.lyrics : song.notes;
-            fsContent.innerHTML = content || `<div style="color:#333; margin-top:100px;">Toque em EDITAR para adicionar informações.</div>`;
+            fsContent.innerHTML = content || `<div style="color:#333; margin-top:100px;">Informação não disponível.</div>`;
             fsContent.scrollTop = 0;
             document.querySelector('.fs-controls').style.display = mode === 'lyrics' ? 'flex' : 'none';
             fsUI.style.display = 'flex';
@@ -463,42 +466,65 @@
             else { navigator.clipboard.writeText(url); toast("Link copiado!"); }
         };
 
-        // --- LÓGICA DE VOZ MELHORADA ---
+        // --- BUSCA AUTOMÁTICA DE LETRAS VIA IA ---
+        async function fetchLyricsForSongs(songsToFetch) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            for (let i = 0; i < songsToFetch.length; i++) {
+                const song = songsToFetch[i];
+                btnStart.textContent = `BUSCANDO LETRAS ${i+1}/${songsToFetch.length}...`;
+                
+                const prompt = `Forneça apenas a letra da música "${song.name}". Retorne apenas o texto da letra, sem introduções, títulos repetidos ou explicações extras. Se não encontrar, retorne apenas "Letra não encontrada".`;
+                
+                // Exponential backoff
+                for (let retry = 0; retry < 5; retry++) {
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                        });
+                        const result = await response.json();
+                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                            song.lyrics = text.trim();
+                            break;
+                        }
+                    } catch (e) {
+                        await new Promise(r => setTimeout(r, Math.pow(2, retry) * 1000));
+                    }
+                }
+            }
+        }
+
         function startVoiceRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
-
             if (recognition) { try { recognition.stop(); } catch(e){} }
-            
             recognition = new SpeechRecognition();
-            recognition.lang = 'pt-BR';
-            recognition.continuous = true;
-            recognition.interimResults = false;
-
+            recognition.lang = 'pt-BR'; recognition.continuous = true; recognition.interimResults = false;
             recognition.onresult = (event) => {
                 const last = event.results.length - 1;
                 const msg = event.results[last][0].transcript.toLowerCase();
                 if (msg.includes("próxima") || msg.includes("proxima") || msg.includes("musica") || msg.includes("música")) {
                     if (currentIndex < showData.songs.length - 1) {
-                        currentIndex++;
-                        updatePalco();
+                        currentIndex++; updatePalco();
                         if (fsUI.style.display === 'flex') openFS(activeMode);
                     }
                 }
             };
-
             recognition.onend = () => {
-                if (palcoUI.style.display === 'block' && micToggle.checked) {
-                    try { recognition.start(); } catch(e) {}
-                }
+                if (palcoUI.style.display === 'block' && micToggle.checked) { try { recognition.start(); } catch(e) {} }
             };
-
             try { recognition.start(); } catch(e) {}
         }
 
-        document.getElementById('btn-start').onclick = async () => {
+        btnStart.onclick = async () => {
             const lines = document.getElementById('setlist-input').value.split('\n').filter(l => l.trim());
             if (!lines.length) return alert("Adicione as músicas!");
+            
+            btnStart.disabled = true;
+            btnStart.textContent = "PROCESSANDO...";
 
             const newSongs = lines.map(line => {
                 const songName = line.trim();
@@ -506,22 +532,23 @@
                 return { name: songName, lyrics: existing ? existing.lyrics : "", notes: existing ? existing.notes : "" };
             });
 
+            // Filtra quais músicas precisam de busca automática (as que estão sem letra)
+            const songsToFetch = newSongs.filter(s => !s.lyrics);
+            if (songsToFetch.length > 0) {
+                await fetchLyricsForSongs(songsToFetch);
+            }
+
             showData.title = document.getElementById('show-title-input').value.trim();
             showData.songs = newSongs;
-            currentIndex = 0; scrollSpeed = 0;
-            document.getElementById('speed-val').textContent = "0";
-            startUI.style.display = 'none';
-            palcoUI.style.display = 'block';
-            menuBtn.style.display = 'none';
+            currentIndex = 0; scrollSpeed = 0; document.getElementById('speed-val').textContent = "0";
+            startUI.style.display = 'none'; palcoUI.style.display = 'block'; menuBtn.style.display = 'none';
+            btnStart.disabled = false;
+            btnStart.textContent = "INICIAR SHOW";
+            
             updatePalco();
-
             if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {} }
-
-            if (micToggle.checked) {
-                startVoiceRecognition();
-            }
+            if (micToggle.checked) startVoiceRecognition();
         };
     </script>
 </body>
 </html>
-
