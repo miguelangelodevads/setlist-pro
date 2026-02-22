@@ -10,12 +10,15 @@
     <meta property="og:description" content="Gerenciador de repertório e letras para músicos.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Setlist Pro App">
-    <!-- O ícone deve ser um ficheiro real no seu GitHub para o compartilhamento funcionar -->
-    <meta property="og:image" content="https://vads.github.io/icon.png">
+    
+    <!-- Força a busca da imagem correta e ignora o cache antigo do WhatsApp -->
+    <meta property="og:image" content="https://miguelangelodevads.github.io/setlist-pro/icon.png?v=novo_cache_1">
+    <meta property="og:image:secure_url" content="https://miguelangelodevads.github.io/setlist-pro/icon.png?v=novo_cache_1">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://miguelangelodevads.github.io/setlist-pro/icon.png?v=novo_cache_1">
 
     <!-- Configuração do PWA e Ícone Interno -->
     <meta name="theme-color" content="#000000">
@@ -350,11 +353,17 @@
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('data')) {
                 try {
-                    const decoded = JSON.parse(atob(decodeURIComponent(urlParams.get('data'))));
-                    document.getElementById('show-title-input').value = decoded.title || "";
-                    document.getElementById('setlist-input').value = decoded.songs.map(s => s.name).join('\n');
-                    showData = decoded;
-                    toast("Show compartilhado carregado!");
+                    const raw = JSON.parse(atob(decodeURIComponent(urlParams.get('data'))));
+                    // Aceita tanto o formato antigo quanto o novo formato comprimido
+                    if (raw.t !== undefined && raw.s !== undefined) {
+                        showData = { title: raw.t, songs: raw.s.map(s => ({ name: s.n, lyrics: s.l, notes: s.o })) };
+                    } else {
+                        showData = raw;
+                    }
+                    
+                    document.getElementById('show-title-input').value = showData.title || "";
+                    document.getElementById('setlist-input').value = showData.songs.map(s => s.name).join('\n');
+                    toast("Show carregado!");
                     window.history.replaceState({}, '', window.location.pathname);
                 } catch(e) {}
             }
@@ -430,7 +439,6 @@
 
         btnSearchWeb.onclick = () => {
             const cleanName = showData.songs[currentIndex].name.replace(/\s[A-G][#b]?m?$/i, '').trim();
-            // Abre no navegador padrão. Se Brave for o padrão, abrirá nele sem anúncios.
             window.open(`https://www.google.com/search?q=${encodeURIComponent(cleanName + " letra")}`, '_blank');
         };
 
@@ -456,11 +464,43 @@
             toast("Salvo!");
         };
 
-        document.getElementById('nav-share').onclick = () => {
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(showData))));
-            const url = window.location.origin + window.location.pathname + "?data=" + encodeURIComponent(encoded);
-            if(navigator.share) navigator.share({ title: 'Setlist Pro', url: url });
-            else { navigator.clipboard.writeText(url); toast("Link copiado!"); }
+        document.getElementById('nav-share').onclick = async () => {
+            toast("Gerando link...");
+            
+            // Comprime os dados para reduzir o tamanho do link
+            const compactData = {
+                t: showData.title,
+                s: showData.songs.map(song => ({ n: song.name, l: song.lyrics || "", o: song.notes || "" }))
+            };
+            
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compactData))));
+            const longUrl = window.location.origin + window.location.pathname + "?data=" + encodeURIComponent(encoded);
+            
+            let finalUrl = longUrl;
+
+            // Tenta usar a API gratuita is.gd para encurtar o link drasticamente
+            try {
+                if (longUrl.length < 4000) { // is.gd tem limite de tamanho
+                    const res = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
+                    const data = await res.json();
+                    if(data.shorturl) {
+                        finalUrl = data.shorturl;
+                    }
+                }
+            } catch(e) { console.log("Não foi possível encurtar o link", e); }
+
+            const shareText = `Confira o repertório: ${showData.title || 'Meu Show'}\n\n`;
+
+            if(navigator.share) {
+                navigator.share({ 
+                    title: 'Setlist Pro', 
+                    text: shareText,
+                    url: finalUrl 
+                }).catch(err => console.log(err));
+            } else { 
+                navigator.clipboard.writeText(shareText + finalUrl); 
+                toast("Link copiado!"); 
+            }
         };
 
         function startVoiceRecognition() {
@@ -504,4 +544,5 @@
     </script>
 </body>
 </html>
+
 
