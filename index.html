@@ -291,6 +291,32 @@
         const micToggle = document.getElementById('mic-toggle');
         const micStatusLabel = document.getElementById('mic-status-label');
 
+        // --- MANTER TELA ATIVA (WAKE LOCK ROBUSTO) ---
+        async function keepScreenOn() {
+            if ('wakeLock' in navigator) {
+                try {
+                    if (wakeLock !== null) {
+                        await wakeLock.release();
+                    }
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.log("Erro WakeLock:", err);
+                }
+            }
+        }
+
+        // Reconectar o Wake Lock se o usuário minimizar e voltar para o app
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                keepScreenOn();
+            }
+        });
+
+        // Ativa na primeira interação em qualquer lugar (regra dos navegadores)
+        document.body.addEventListener('click', keepScreenOn, { once: true });
+        document.body.addEventListener('touchstart', keepScreenOn, { once: true, passive: true });
+
+
         // --- GESTOS DE SWIPE ---
         let touchstartX = 0;
         let touchendX = 0;
@@ -394,7 +420,8 @@
             startUI.style.display = 'flex';
             menuBtn.style.display = 'block';
             if (recognition) { recognition.onend = null; try { recognition.stop(); } catch(e){} }
-            if (wakeLock) { wakeLock.release().then(() => wakeLock = null); }
+            // Libera a tela quando volta para o menu
+            if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
         };
 
         function openFS(mode) {
@@ -538,7 +565,9 @@
             currentIndex = 0; scrollSpeed = 0; document.getElementById('speed-val').textContent = "0";
             startUI.style.display = 'none'; palcoUI.style.display = 'block'; menuBtn.style.display = 'none';
             updatePalco();
-            if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {} }
+            
+            keepScreenOn(); // Força a tela a ficar ligada ao iniciar o show
+            
             if (micToggle.checked) startVoiceRecognition();
         };
     </script>
