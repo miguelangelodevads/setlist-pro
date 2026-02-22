@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Configuração do PWA e Ícone Dinâmico -->
+    <meta name="theme-color" content="#050505">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Setlist Pro">
+    <script>
+        // Criação do Ícone (SVG de Folha de Papel) e do Manifest PWA dinamicamente!
+        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a1a1a" /><stop offset="100%" stop-color="#050505" /></linearGradient><linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b09b" /><stop offset="100%" stop-color="#96c93d" /></linearGradient></defs><rect width="512" height="512" rx="120" fill="url(#bg)"/><rect width="512" height="512" rx="120" fill="none" stroke="url(#primary)" stroke-width="8"/><path d="M160 120 h130 l70 70 v200 a20 20 0 0 1 -20 20 h-180 a20 20 0 0 1 -20 -20 v-250 a20 20 0 0 1 20 -20 z" fill="#111" stroke="url(#primary)" stroke-width="24" stroke-linejoin="round"/><path d="M290 120 v50 a20 20 0 0 0 20 20 h50" fill="none" stroke="url(#primary)" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"/><text x="256" y="250" font-family="sans-serif" font-weight="900" font-size="72" fill="#ffffff" text-anchor="middle" letter-spacing="2">SET</text><text x="256" y="320" font-family="sans-serif" font-weight="900" font-size="72" fill="#00e676" text-anchor="middle" letter-spacing="2">LIST</text><circle cx="190" cy="365" r="8" fill="#00e676"/><rect x="220" y="357" width="100" height="16" rx="8" fill="#555"/><circle cx="190" cy="405" r="8" fill="#00e676"/><rect x="220" y="397" width="70" height="16" rx="8" fill="#555"/></svg>`;
+        
+        const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+
+        // Adiciona Favicon e Apple Touch Icon (para ecrã principal iOS/Android)
+        const linkIcon = document.createElement('link'); linkIcon.rel = 'icon'; linkIcon.href = iconUrl; document.head.appendChild(linkIcon);
+        const appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = iconUrl; document.head.appendChild(appleIcon);
+
+        // Adiciona Manifest.json (Transforma num PWA instalável)
+        const manifest = {
+            name: "Setlist Pro",
+            short_name: "Setlist",
+            start_url: window.location.href,
+            display: "standalone",
+            background_color: "#050505",
+            theme_color: "#00e676",
+            icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const linkManifest = document.createElement('link'); linkManifest.rel = 'manifest'; linkManifest.href = URL.createObjectURL(manifestBlob); document.head.appendChild(linkManifest);
+    </script>
+
+    <title>Setlist Interativo - Pro</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --surface-color: rgba(25, 25, 25, 0.8);
+            --text-main: #ffffff;
+            --text-accent: #00e676; /* Verde Neon */
+            --text-muted: #888888;
+            --primary-btn: linear-gradient(135deg, #00b09b, #96c93d);
+            --danger-color: #ff3d00;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1a1a1a 0%, var(--bg-color) 100%);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* TELA INICIAL */
+        #start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 2;
+        }
+
+        h1 { 
+            margin: 0 0 15px 0; 
+            font-size: 2rem;
+            background: var(--primary-btn);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin: 0 0 20px 0;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        /* Textarea Moderna */
+        #setlist-input {
+            width: 100%;
+            flex-grow: 1;
+            max-height: 250px;
+            min-height: 120px;
+            background: var(--surface-color);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+            font-family: inherit;
+            resize: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        #setlist-input:focus {
+            outline: none;
+            border-color: rgba(0, 230, 118, 0.5);
+            box-shadow: 0 0 0 4px rgba(0, 230, 118, 0.1);
+        }
+
+        /* Configurações / Card */
+        .settings-card {
+            width: 100%;
+            background: var(--surface-color);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Toggle Switch iOS Style */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .toggle-title { font-weight: 600; font-size: 1rem; }
+        .toggle-desc { color: var(--danger-color); font-size: 0.8rem; margin-top: 4px; }
+        .toggle-hint { color: var(--text-accent); font-size: 0.8rem; margin-top: 4px; opacity: 0.9; }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 30px;
+            flex-shrink: 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 34px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .slider:before {
+            position: absolute; content: "";
+            height: 22px; width: 22px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider { background-color: var(--text-accent); border-color: var(--text-accent); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* Botão Iniciar Moderno */
+        #start-btn {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: var(--primary-btn);
+            color: #000;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0, 230, 118, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #start-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 5px 10px rgba(0, 230, 118, 0.2);
+        }
+
+        /* TELA DA APLICAÇÃO (SHOW) */
+        #app-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Barra de Progresso no topo */
+        #progress-container {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            z-index: 30;
+        }
+        #progress-bar {
+            height: 100%;
+            background: var(--text-accent);
+            width: 0%;
+            transition: width 0.4s ease-out;
+            box-shadow: 0 0 10px var(--text-accent);
+        }
+
+        /* Zonas de Toque */
+        #touch-zone-left, #touch-zone-right {
+            position: absolute;
+            top: 6px; bottom: 60px;
+            z-index: 10;
+        }
+        #touch-zone-left { left: 0; width: 35%; }
+        #touch-zone-right { right: 0; width: 65%; }
+
+        /* Área da Música */
+        #song-display {
+            position: absolute;
+            top: 6px; left: 0; right: 0; bottom: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+            text-align: center;
+            padding: 0 5vw;
+        }
+
+        /* Animação de transição */
+        .animate-change {
+            animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(30px) scale(0.95); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        #song-number {
+            font-size: clamp(1rem, 3vw, 2rem);
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #current-song {
+            /* Tamanho fluido incrível: cresce com a tela, mas tem limites */
+            font-size: clamp(2.5rem, 8vw, 7rem); 
+            font-weight: 900;
+            color: var(--text-main);
+            line-height: 1.1;
+            margin: 0 0 15px 0;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            word-wrap: break-word;
+            width: 100%;
+        }
+
+        #next-song-preview {
+            font-size: clamp(1.2rem, 3vw, 2.5rem);
+            color: var(--text-accent);
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        /* Barra Inferior (Status) */
+        .status-bar {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            font-size: 14px;
+            z-index: 20;
+            padding-bottom: env(safe-area-inset-bottom); /* Suporte para notch do iPhone */
+        }
+
+        .status-item { display: flex; align-items: center; gap: 10px; font-weight: 500;}
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: #444; }
+        .status-indicator.active { background-color: var(--text-accent); box-shadow: 0 0 10px var(--text-accent); }
+        .status-indicator.mic-on { background-color: #00b0ff; box-shadow: 0 0 10px #00b0ff; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.5); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+
+        .hint { font-size: 13px; opacity: 0.5; letter-spacing: 0.5px; }
+
+    </style>
+</head>
+<body>
+
+    <!-- TELA INICIAL -->
+    <div id="start-screen">
+        <h1>Setlist Pro</h1>
+        <p class="subtitle">Cole seu repertório abaixo (uma música por linha)</p>
+        
+        <textarea id="setlist-input" placeholder="Ex:&#10;1. Satisfaction&#10;2. Tempo Perdido&#10;3. Someday...">
+Satisfaction
+Pro Dia Nascer Feliz
+Someday
+Vou Deixar
+Descobridor dos Sete Mares
+Sunday Bloody Sunday
+Tempo Perdido</textarea>
+
+        <div class="settings-card">
+            <div class="toggle-row">
+                <label class="toggle-label" for="use-mic-checkbox">
+                    <span class="toggle-title">Comando de Voz</span>
+                    <span class="toggle-desc">Desligue em palcos barulhentos</span>
+                    <span class="toggle-hint">Fale "próxima música" para avançar</span>
+                </label>
+                <label class="switch">
+                    <input type="checkbox" id="use-mic-checkbox">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <button id="start-btn">INICIAR SHOW</button>
+    </div>
+
+    <!-- TELA PRINCIPAL (SHOW) -->
+    <div id="app-content">
+        <!-- Barra de Progresso Superior -->
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <!-- Zonas de clique rápido (Invisíveis) -->
+        <div id="touch-zone-left"></div>
+        <div id="touch-zone-right"></div>
+
+        <div id="song-display">
+            <div id="song-number">MÚSICA 1 DE 8</div>
+            <div id="current-song">Carregando...</div>
+            <div id="next-song-preview">Próxima: ...</div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="screen-indicator"></div>
+                <span>Ecrã Ativo</span>
+            </div>
+            <div class="hint">Toque: ◄ Voltar | Avançar ►</div>
+            <div class="status-item">
+                <span id="mic-status-text">Mic Off</span>
+                <div class="status-indicator" id="mic-indicator"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let setlist = [];
+        let currentIndex = 0;
+        let wakeLock = null;
+        let recognition = null;
+
+        const startScreen = document.getElementById('start-screen');
+        const appContent = document.getElementById('app-content');
+        const songDisplayWrapper = document.getElementById('song-display');
+        const songNumberEl = document.getElementById('song-number');
+        const currentSongEl = document.getElementById('current-song');
+        const nextSongPreviewEl = document.getElementById('next-song-preview');
+        const progressBar = document.getElementById('progress-bar');
+        const micCheckbox = document.getElementById('use-mic-checkbox');
+        
+        const zoneLeft = document.getElementById('touch-zone-left');
+        const zoneRight = document.getElementById('touch-zone-right');
+
+        function updateDisplay() {
+            // Reinicia a animação removendo e adicionando a classe
+            songDisplayWrapper.classList.remove('animate-change');
+            void songDisplayWrapper.offsetWidth; // Trigger reflow (Truque do CSS)
+            songDisplayWrapper.classList.add('animate-change');
+
+            if (currentIndex < setlist.length && currentIndex >= 0) {
+                // Atualiza o texto
+                songNumberEl.textContent = `MÚSICA ${currentIndex + 1} DE ${setlist.length}`;
+                currentSongEl.textContent = setlist[currentIndex];
+                
+                if (currentIndex + 1 < setlist.length) {
+                    nextSongPreviewEl.textContent = "Próxima: " + setlist[currentIndex + 1];
+                } else {
+                    nextSongPreviewEl.textContent = "Última música!";
+                }
+
+                // Atualiza a barra de progresso
+                const progressPercentage = ((currentIndex + 1) / setlist.length) * 100;
+                progressBar.style.width = `${progressPercentage}%`;
+
+            } else {
+                songNumberEl.textContent = "FIM DO SHOW";
+                currentSongEl.textContent = "VALEU GALERA!";
+                nextSongPreviewEl.textContent = "";
+                progressBar.style.width = "100%";
+            }
+        }
+
+        // --- CONTROLES DE NAVEGAÇÃO ---
+        function nextSong() {
+            if (currentIndex < setlist.length) {
+                currentIndex++;
+                updateDisplay();
+                flashZone(zoneRight);
+            }
+        }
+
+        function prevSong() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+                flashZone(zoneLeft);
+            }
+        }
+
+        // Efeito visual sutil ao tocar na tela
+        function flashZone(element) {
+            element.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+            setTimeout(() => { element.style.backgroundColor = "transparent"; }, 150);
+        }
+
+        // Eventos de Toque (Touch e Mouse)
+        zoneRight.addEventListener('touchstart', (e) => { e.preventDefault(); nextSong(); });
+        zoneRight.addEventListener('mousedown', nextSong);
+        
+        zoneLeft.addEventListener('touchstart', (e) => { e.preventDefault(); prevSong(); });
+        zoneLeft.addEventListener('mousedown', prevSong);
+
+        // --- SUPORTE A PEDAL BLUETOOTH / TECLADO ---
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) {
+                e.preventDefault();
+                nextSong();
+            } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) {
+                e.preventDefault();
+                prevSong();
+            }
+        });
+
+        // --- WAKE LOCK (TELA SEMPRE LIGADA) ---
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('screen-indicator').classList.add('active');
+                    
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Erro Wake Lock:', err);
+            }
+        }
+
+        // --- RECONHECIMENTO DE VOZ ---
+        function setupVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                document.getElementById('mic-indicator').classList.add('mic-on');
+                document.getElementById('mic-status-text').textContent = "Mic On";
+            };
+
+            recognition.onresult = (event) => {
+                const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                if (command.includes("próxima") || command.includes("proxima") || command.includes("avançar")) {
+                    nextSong();
+                }
+            };
+
+            recognition.onend = () => {
+                if (appContent.style.display === 'block' && micCheckbox.checked) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            };
+
+            try { recognition.start(); } catch(e) {}
+        }
+
+        // --- INICIAR O SHOW ---
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const inputText = document.getElementById('setlist-input').value;
+            setlist = inputText.split('\n').map(song => song.trim()).filter(song => song.length > 0);
+
+            if (setlist.length === 0) {
+                alert("Por favor, digite pelo menos uma música!");
+                return;
+            }
+
+            currentIndex = 0; 
+            startScreen.style.display = 'none';
+            appContent.style.display = 'block';
+            
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                }
+            } catch(e) {}
+
+            updateDisplay();
+            requestWakeLock();
+            
+            if (micCheckbox.checked) {
+                setupVoiceRecognition();
+            }
+        });
+
+    </script>
+</body>
+</html>
