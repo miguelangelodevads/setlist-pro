@@ -10,12 +10,12 @@
     <meta property="og:description" content="Gerenciador de repertório e letras para músicos.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Setlist Pro App">
-    <meta property="og:image" content="./icon.png">
+    <!-- O ícone deve ser um ficheiro real no seu GitHub para o compartilhamento funcionar -->
+    <meta property="og:image" content="https://vads.github.io/icon.png">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="./icon.png">
 
     <!-- Configuração do PWA e Ícone Interno -->
     <meta name="theme-color" content="#000000">
@@ -130,7 +130,6 @@
             background: var(--primary-grad); color: #000; font-weight: 900; font-size: 1.2rem; 
             cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
         }
-        .btn-go:disabled { opacity: 0.7; cursor: wait; }
 
         /* --- TELA DE PALCO --- */
         #app-content { display: none; width: 100%; height: 100%; position: relative; }
@@ -235,7 +234,7 @@
         <div class="navbar-capsule">
             <button class="nav-btn" id="nav-notes"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span>Notas</span></button>
             <button class="nav-btn" id="nav-lyrics"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Letra</span></button>
-            <button class="nav-btn" id="nav-save"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg><span>Salvar</span></button>
+            <button class="nav-btn" id="nav-save"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path></svg><span>Salvar</span></button>
             <button class="nav-btn" id="nav-share"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg><span>Partilhar</span></button>
         </div>
     </div>
@@ -257,7 +256,7 @@
 
     <!-- EDITOR MODAL -->
     <div id="editor-modal">
-        <button class="btn-search-web" id="btn-search-web">🔍 Buscar Letra na Web</button>
+        <button class="btn-search-web" id="btn-search-web">🔍 BUSCAR LETRA NA WEB</button>
         <textarea id="editor-input" placeholder="Digite aqui suas Notas"></textarea>
         <div class="edit-btns">
             <button class="fs-action-btn btn-close" onclick="document.getElementById('editor-modal').style.display='none'">Cancelar</button>
@@ -268,7 +267,6 @@
     <div id="toast">Msg</div>
 
     <script>
-        const apiKey = ""; // Chave fornecida pelo ambiente
         let showData = { title: "", songs: [] };
         let currentIndex = 0;
         let wakeLock = null;
@@ -289,7 +287,6 @@
         const menuList = document.getElementById('menu-list');
         const micToggle = document.getElementById('mic-toggle');
         const micStatusLabel = document.getElementById('mic-status-label');
-        const btnStart = document.getElementById('btn-start');
 
         // --- GESTOS DE SWIPE ---
         let touchstartX = 0;
@@ -372,7 +369,6 @@
                 document.getElementById('stage-current').textContent = song.name;
                 document.getElementById('stage-next').textContent = showData.songs[currentIndex+1] ? "Próxima: " + showData.songs[currentIndex+1].name : "";
                 document.getElementById('progress-header').style.width = `${((currentIndex + 1) / showData.songs.length) * 100}%`;
-                
                 document.getElementById('nav-lyrics').className = `nav-btn ${song.lyrics ? 'active-info' : ''}`;
                 document.getElementById('nav-notes').className = `nav-btn ${song.notes ? 'active-info' : ''}`;
             } else {
@@ -398,7 +394,7 @@
             const song = showData.songs[currentIndex];
             document.getElementById('fs-song-name').innerHTML = song.name;
             const content = mode === 'lyrics' ? song.lyrics : song.notes;
-            fsContent.innerHTML = content || `<div style="color:#333; margin-top:100px;">Informação não disponível.</div>`;
+            fsContent.innerHTML = content || `<div style="color:#333; margin-top:100px;">Toque em EDITAR para adicionar informações.</div>`;
             fsContent.scrollTop = 0;
             document.querySelector('.fs-controls').style.display = mode === 'lyrics' ? 'flex' : 'none';
             fsUI.style.display = 'flex';
@@ -434,6 +430,7 @@
 
         btnSearchWeb.onclick = () => {
             const cleanName = showData.songs[currentIndex].name.replace(/\s[A-G][#b]?m?$/i, '').trim();
+            // Abre no navegador padrão. Se Brave for o padrão, abrirá nele sem anúncios.
             window.open(`https://www.google.com/search?q=${encodeURIComponent(cleanName + " letra")}`, '_blank');
         };
 
@@ -466,37 +463,6 @@
             else { navigator.clipboard.writeText(url); toast("Link copiado!"); }
         };
 
-        // --- BUSCA AUTOMÁTICA DE LETRAS VIA IA ---
-        async function fetchLyricsForSongs(songsToFetch) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
-            for (let i = 0; i < songsToFetch.length; i++) {
-                const song = songsToFetch[i];
-                btnStart.textContent = `BUSCANDO LETRAS ${i+1}/${songsToFetch.length}...`;
-                
-                const prompt = `Forneça apenas a letra da música "${song.name}". Retorne apenas o texto da letra, sem introduções, títulos repetidos ou explicações extras. Se não encontrar, retorne apenas "Letra não encontrada".`;
-                
-                // Exponential backoff
-                for (let retry = 0; retry < 5; retry++) {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                        });
-                        const result = await response.json();
-                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) {
-                            song.lyrics = text.trim();
-                            break;
-                        }
-                    } catch (e) {
-                        await new Promise(r => setTimeout(r, Math.pow(2, retry) * 1000));
-                    }
-                }
-            }
-        }
-
         function startVoiceRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
@@ -519,32 +485,18 @@
             try { recognition.start(); } catch(e) {}
         }
 
-        btnStart.onclick = async () => {
+        document.getElementById('btn-start').onclick = async () => {
             const lines = document.getElementById('setlist-input').value.split('\n').filter(l => l.trim());
             if (!lines.length) return alert("Adicione as músicas!");
-            
-            btnStart.disabled = true;
-            btnStart.textContent = "PROCESSANDO...";
-
             const newSongs = lines.map(line => {
                 const songName = line.trim();
                 const existing = showData.songs.find(s => s.name === songName);
                 return { name: songName, lyrics: existing ? existing.lyrics : "", notes: existing ? existing.notes : "" };
             });
-
-            // Filtra quais músicas precisam de busca automática (as que estão sem letra)
-            const songsToFetch = newSongs.filter(s => !s.lyrics);
-            if (songsToFetch.length > 0) {
-                await fetchLyricsForSongs(songsToFetch);
-            }
-
             showData.title = document.getElementById('show-title-input').value.trim();
             showData.songs = newSongs;
             currentIndex = 0; scrollSpeed = 0; document.getElementById('speed-val').textContent = "0";
             startUI.style.display = 'none'; palcoUI.style.display = 'block'; menuBtn.style.display = 'none';
-            btnStart.disabled = false;
-            btnStart.textContent = "INICIAR SHOW";
-            
             updatePalco();
             if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {} }
             if (micToggle.checked) startVoiceRecognition();
@@ -552,3 +504,4 @@
     </script>
 </body>
 </html>
+
