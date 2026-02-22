@@ -554,6 +554,15 @@ Tempo Perdido</textarea>
             }
         });
 
+        // --- REGISTO DO SERVICE WORKER (Para remover o ícone do Chrome e funcionar Offline) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registado com sucesso!'))
+                    .catch(err => console.error('Erro ao registar o Service Worker:', err));
+            });
+        }
+
     </script>
 </body>
 </html>
