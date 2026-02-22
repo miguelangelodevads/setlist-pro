@@ -224,19 +224,43 @@
             box-shadow: 0 0 10px var(--text-accent);
         }
 
-        /* Zonas de Toque */
+        /* Botão Sair do Show */
+        #back-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: all 0.2s;
+        }
+
+        #back-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        /* Zonas de Toque expandidas para o fundo do ecrã */
         #touch-zone-left, #touch-zone-right {
             position: absolute;
-            top: 6px; bottom: 60px;
+            top: 6px; bottom: 0;
             z-index: 10;
         }
         #touch-zone-left { left: 0; width: 35%; }
         #touch-zone-right { right: 0; width: 65%; }
 
-        /* Área da Música */
+        /* Área da Música expandida */
         #song-display {
             position: absolute;
-            top: 6px; left: 0; right: 0; bottom: 60px;
+            top: 6px; left: 0; right: 0; bottom: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -285,38 +309,6 @@
             opacity: 0.8;
         }
 
-        /* Barra Inferior (Status) */
-        .status-bar {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 60px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 30px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            color: var(--text-muted);
-            font-size: 14px;
-            z-index: 20;
-            padding-bottom: env(safe-area-inset-bottom); /* Suporte para notch do iPhone */
-        }
-
-        .status-item { display: flex; align-items: center; gap: 10px; font-weight: 500;}
-        .status-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: #444; }
-        .status-indicator.active { background-color: var(--text-accent); box-shadow: 0 0 10px var(--text-accent); }
-        .status-indicator.mic-on { background-color: #00b0ff; box-shadow: 0 0 10px #00b0ff; animation: pulse 1.5s infinite; }
-
-        @keyframes pulse {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            50% { transform: scale(1.5); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0.8; }
-        }
-
-        .hint { font-size: 13px; opacity: 0.5; letter-spacing: 0.5px; }
-
     </style>
 </head>
 <body>
@@ -359,6 +351,9 @@ Tempo Perdido</textarea>
             <div id="progress-bar"></div>
         </div>
 
+        <!-- Botão Voltar à tela inicial -->
+        <button id="back-btn">Sair do Show</button>
+
         <!-- Zonas de clique rápido (Invisíveis) -->
         <div id="touch-zone-left"></div>
         <div id="touch-zone-right"></div>
@@ -368,18 +363,6 @@ Tempo Perdido</textarea>
             <div id="current-song">Carregando...</div>
             <div id="next-song-preview">Próxima: ...</div>
         </div>
-
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-indicator" id="screen-indicator"></div>
-                <span>Ecrã Ativo</span>
-            </div>
-            <div class="hint">Toque: ◄ Voltar | Avançar ►</div>
-            <div class="status-item">
-                <span id="mic-status-text">Mic Off</span>
-                <div class="status-indicator" id="mic-indicator"></div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -387,6 +370,7 @@ Tempo Perdido</textarea>
         let currentIndex = 0;
         let wakeLock = null;
         let recognition = null;
+        let isAppRunning = false; // Controla o estado para desligar funções corretamente ao sair
 
         const startScreen = document.getElementById('start-screen');
         const appContent = document.getElementById('app-content');
@@ -470,15 +454,41 @@ Tempo Perdido</textarea>
             }
         });
 
+        // --- BOTÃO SAIR DO SHOW (Voltar à tela inicial) ---
+        document.getElementById('back-btn').addEventListener('click', () => {
+            isAppRunning = false; 
+            
+            // Para o microfone e impede que ele reinicie automaticamente
+            if (recognition) {
+                recognition.onend = null; 
+                try { recognition.stop(); } catch(e) {}
+            }
+
+            // Liberta o bloqueio do ecrã
+            if (wakeLock) {
+                wakeLock.release().then(() => wakeLock = null).catch(console.error);
+            }
+
+            // Sai de ecrã inteiro se estiver ativo
+            try {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => console.log(err));
+                }
+            } catch(e) {}
+
+            // Troca as telas
+            appContent.style.display = 'none';
+            startScreen.style.display = 'flex';
+        });
+
         // --- WAKE LOCK (TELA SEMPRE LIGADA) ---
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    document.getElementById('screen-indicator').classList.add('active');
                     
                     document.addEventListener('visibilitychange', async () => {
-                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                        if (wakeLock !== null && document.visibilityState === 'visible' && isAppRunning) {
                             wakeLock = await navigator.wakeLock.request('screen');
                         }
                     });
@@ -498,11 +508,6 @@ Tempo Perdido</textarea>
             recognition.continuous = true;
             recognition.interimResults = false;
 
-            recognition.onstart = () => {
-                document.getElementById('mic-indicator').classList.add('mic-on');
-                document.getElementById('mic-status-text').textContent = "Mic On";
-            };
-
             recognition.onresult = (event) => {
                 const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
                 if (command.includes("próxima") || command.includes("proxima") || command.includes("avançar")) {
@@ -510,8 +515,9 @@ Tempo Perdido</textarea>
                 }
             };
 
+            // Reinicia automaticamente o mic se a app estiver aberta
             recognition.onend = () => {
-                if (appContent.style.display === 'block' && micCheckbox.checked) {
+                if (isAppRunning && micCheckbox.checked) {
                     try { recognition.start(); } catch(e) {}
                 }
             };
@@ -530,6 +536,7 @@ Tempo Perdido</textarea>
             }
 
             currentIndex = 0; 
+            isAppRunning = true;
             startScreen.style.display = 'none';
             appContent.style.display = 'block';
             
