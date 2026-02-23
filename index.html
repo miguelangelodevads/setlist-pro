@@ -158,9 +158,9 @@
         /* --- CORREÇÃO DE RESPONSIVIDADE EM MODO PAISAGEM --- */
         @media (orientation: landscape) { 
             .navbar-capsule { display: none !important; } 
-            #main-stage { inset: 0; padding-top: 30px; } /* Ocupa a tela inteira sem a navbar */
+            #main-stage { inset: 0; padding-top: 30px; }
             #stage-count { font-size: 0.9rem; margin-bottom: 5px; }
-            #stage-current { font-size: 14vh; margin-bottom: 10px; } /* Usa a altura (vh) para não estourar a tela */
+            #stage-current { font-size: 14vh; margin-bottom: 10px; } 
             #stage-next { font-size: 7vh; }
             .btn-exit-show { top: 15px; right: 15px; padding: 6px 12px; font-size: 0.8rem; }
         }
@@ -181,7 +181,9 @@
 
         /* EDITOR MODAL */
         #editor-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 4000; display: none; flex-direction: column; padding: 30px; box-sizing: border-box; }
-        .btn-search-web { background: #222; color: #fff; border: 1px solid #444; border-radius: 16px; padding: 15px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 15px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-search-web { background: #222; color: #fff; border: 1px solid #444; border-radius: 16px; padding: 15px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 15px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.2s; }
+        .btn-search-web:active { background: #333; }
+        .btn-search-web:disabled { opacity: 0.5; cursor: not-allowed; }
         #editor-input { flex-grow: 1; background: #0a0a0a; color: #fff; border: 1px solid #333; border-radius: 16px; padding: 20px; font-size: 1.2rem; font-family: inherit; }
         .edit-btns { display: flex; gap: 15px; margin-top: 20px; }
 
@@ -311,14 +313,12 @@
             }
         }
 
-        // Reconectar o Wake Lock se o usuário minimizar e voltar para o app
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && palcoUI.style.display === 'block') {
                 requestWakeLock();
             }
         });
 
-        // Garante que qualquer interação reative a tela caso o sistema a tenha derrubado por inatividade
         document.addEventListener('touchstart', () => {
             if (palcoUI.style.display === 'block') requestWakeLock();
         }, { passive: true });
@@ -326,7 +326,6 @@
         document.addEventListener('click', () => {
             if (palcoUI.style.display === 'block') requestWakeLock();
         });
-
 
         // --- GESTOS DE SWIPE ---
         let touchstartX = 0;
@@ -391,7 +390,6 @@
             if (urlParams.has('data')) {
                 try {
                     const raw = JSON.parse(atob(decodeURIComponent(urlParams.get('data'))));
-                    // Aceita tanto o formato antigo quanto o novo formato comprimido
                     if (raw.t !== undefined && raw.s !== undefined) {
                         showData = { title: raw.t, songs: raw.s.map(s => ({ name: s.n, lyrics: s.l, notes: s.o })) };
                     } else {
@@ -431,7 +429,6 @@
             startUI.style.display = 'flex';
             menuBtn.style.display = 'block';
             if (recognition) { recognition.onend = null; try { recognition.stop(); } catch(e){} }
-            // Libera a tela quando volta para o menu
             if (wakeLock !== null) { wakeLock.release().catch(()=>{}); wakeLock = null; }
         };
 
@@ -467,6 +464,24 @@
         document.getElementById('nav-notes').onclick = () => openFS('notes');
         document.getElementById('fs-close').onclick = () => { stopAutoScroll(); fsUI.style.display = 'none'; };
         
+        // --- FUNÇÃO PARA CORRIGIR CARACTERES ESTRANHOS (ENCODING) DA API ---
+        const fixEncoding = (str) => {
+            let fixed = str;
+            try { fixed = decodeURIComponent(escape(str)); } catch (e) {}
+            const replacements = {
+                'áª': 'ê', 'Ãª': 'ê', 'á¡': 'á', 'Ã¡': 'á', 'áº': 'ú', 'Ãº': 'ú',
+                'á´': 'ô', 'Ã´': 'ô', 'á§': 'ç', 'Ã§': 'ç', 'á£': 'ã', 'Ã£': 'ã',
+                'á©': 'é', 'Ã©': 'é', 'á³': 'ó', 'Ã³': 'ó', 'áµ': 'õ', 'Ãµ': 'õ',
+                'á¢': 'â', 'Ã¢': 'â', 'Ã‡': 'Ç', 'Ãƒ': 'Ã', 'ÃŠ': 'Ê', 'Ã‰': 'É',
+                'Ã“': 'Ó', 'Ã•': 'Õ', 'Ãš': 'Ú', 'Ã‚': 'Â', 'Há¡': 'Há',
+                'vocáª': 'você', 'táºnel': 'túnel'
+            };
+            for (const [wrong, right] of Object.entries(replacements)) {
+                fixed = fixed.split(wrong).join(right);
+            }
+            return fixed;
+        };
+
         document.getElementById('fs-edit').onclick = () => {
             const song = showData.songs[currentIndex];
             document.getElementById('editor-input').value = activeMode === 'lyrics' ? (song.lyrics || '') : (song.notes || '');
@@ -475,9 +490,46 @@
             editorUI.style.display = 'flex';
         };
 
-        btnSearchWeb.onclick = () => {
-            const cleanName = showData.songs[currentIndex].name.replace(/\s[A-G][#b]?m?$/i, '').trim();
-            window.open(`https://www.google.com/search?q=${encodeURIComponent(cleanName + " letra")}`, '_blank');
+        // --- LÓGICA DE BUSCA DE LETRAS INCORPORADA NO BOTÃO (Usando o código React que forneceu) ---
+        btnSearchWeb.onclick = async () => {
+            const songNameRaw = showData.songs[currentIndex].name;
+            // Limpa o tom do fim do nome para facilitar a busca
+            const cleanName = songNameRaw.replace(/\s[A-G][#b]?m?$/i, '').trim();
+            
+            // Tenta adivinhar o artista e a música se o utilizador escreveu "Artista - Música"
+            let defaultArtist = "";
+            let defaultTitle = cleanName;
+            if (cleanName.includes('-')) {
+                const parts = cleanName.split('-');
+                defaultArtist = parts[0].trim();
+                defaultTitle = parts[1].trim();
+            }
+
+            const artist = prompt(`Buscar letra para: ${defaultTitle}\nQual o nome do artista/banda?`, defaultArtist);
+            if (!artist) return; // Se cancelar ou deixar vazio, aborta
+
+            const originalBtnHtml = btnSearchWeb.innerHTML;
+            btnSearchWeb.innerHTML = "⏳ BUSCANDO...";
+            btnSearchWeb.disabled = true;
+
+            try {
+                // Fetch exatamente como estava no código React que enviou
+                const response = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist.trim())}/${encodeURIComponent(defaultTitle)}`);
+                const data = await response.json();
+                
+                if (data.lyrics) {
+                    const lyricsFixed = fixEncoding(data.lyrics);
+                    document.getElementById('editor-input').value = lyricsFixed;
+                    toast("Letra importada com sucesso!");
+                } else {
+                    toast("Letra não encontrada na base de dados.");
+                }
+            } catch (error) {
+                toast("Erro ao buscar a letra. Verifique a internet.");
+            } finally {
+                btnSearchWeb.innerHTML = originalBtnHtml;
+                btnSearchWeb.disabled = false;
+            }
         };
 
         document.getElementById('editor-save-btn').onclick = () => {
@@ -505,7 +557,6 @@
         document.getElementById('nav-share').onclick = async () => {
             toast("Gerando link...");
             
-            // Comprime os dados para reduzir o tamanho do link
             const compactData = {
                 t: showData.title,
                 s: showData.songs.map(song => ({ n: song.name, l: song.lyrics || "", o: song.notes || "" }))
@@ -516,9 +567,8 @@
             
             let finalUrl = longUrl;
 
-            // Tenta usar a API gratuita is.gd para encurtar o link drasticamente
             try {
-                if (longUrl.length < 4000) { // is.gd tem limite de tamanho
+                if (longUrl.length < 4000) { 
                     const res = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
                     const data = await res.json();
                     if(data.shorturl) {
@@ -577,12 +627,10 @@
             startUI.style.display = 'none'; palcoUI.style.display = 'block'; menuBtn.style.display = 'none';
             updatePalco();
             
-            requestWakeLock(); // Força a tela a ficar ligada ao iniciar o show
+            requestWakeLock(); 
             
             if (micToggle.checked) startVoiceRecognition();
         };
     </script>
 </body>
 </html>
-
-
