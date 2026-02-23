@@ -155,7 +155,15 @@
         .nav-btn.active-info { color: var(--accent); }
         .nav-btn.active-info span { color: var(--accent); }
 
-        @media (orientation: landscape) { .navbar-capsule { display: none !important; } }
+        /* --- CORREÇÃO DE RESPONSIVIDADE EM MODO PAISAGEM --- */
+        @media (orientation: landscape) { 
+            .navbar-capsule { display: none !important; } 
+            #main-stage { inset: 0; padding-top: 30px; } /* Ocupa a tela inteira sem a navbar */
+            #stage-count { font-size: 0.9rem; margin-bottom: 5px; }
+            #stage-current { font-size: 14vh; margin-bottom: 10px; } /* Usa a altura (vh) para não estourar a tela */
+            #stage-next { font-size: 7vh; }
+            .btn-exit-show { top: 15px; right: 15px; padding: 6px 12px; font-size: 0.8rem; }
+        }
 
         /* --- TELEPROMPTER --- */
         .fs-overlay { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; padding: 25px; box-sizing: border-box; }
@@ -292,12 +300,10 @@
         const micStatusLabel = document.getElementById('mic-status-label');
 
         // --- MANTER TELA ATIVA (WAKE LOCK ROBUSTO) ---
-        async function keepScreenOn() {
+        async function requestWakeLock() {
             if ('wakeLock' in navigator) {
                 try {
-                    if (wakeLock !== null) {
-                        await wakeLock.release();
-                    }
+                    if (wakeLock !== null && !wakeLock.released) return; 
                     wakeLock = await navigator.wakeLock.request('screen');
                 } catch (err) {
                     console.log("Erro WakeLock:", err);
@@ -307,14 +313,19 @@
 
         // Reconectar o Wake Lock se o usuário minimizar e voltar para o app
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                keepScreenOn();
+            if (document.visibilityState === 'visible' && palcoUI.style.display === 'block') {
+                requestWakeLock();
             }
         });
 
-        // Ativa na primeira interação em qualquer lugar (regra dos navegadores)
-        document.body.addEventListener('click', keepScreenOn, { once: true });
-        document.body.addEventListener('touchstart', keepScreenOn, { once: true, passive: true });
+        // Garante que qualquer interação reative a tela caso o sistema a tenha derrubado por inatividade
+        document.addEventListener('touchstart', () => {
+            if (palcoUI.style.display === 'block') requestWakeLock();
+        }, { passive: true });
+        
+        document.addEventListener('click', () => {
+            if (palcoUI.style.display === 'block') requestWakeLock();
+        });
 
 
         // --- GESTOS DE SWIPE ---
@@ -421,7 +432,7 @@
             menuBtn.style.display = 'block';
             if (recognition) { recognition.onend = null; try { recognition.stop(); } catch(e){} }
             // Libera a tela quando volta para o menu
-            if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
+            if (wakeLock !== null) { wakeLock.release().catch(()=>{}); wakeLock = null; }
         };
 
         function openFS(mode) {
@@ -566,7 +577,7 @@
             startUI.style.display = 'none'; palcoUI.style.display = 'block'; menuBtn.style.display = 'none';
             updatePalco();
             
-            keepScreenOn(); // Força a tela a ficar ligada ao iniciar o show
+            requestWakeLock(); // Força a tela a ficar ligada ao iniciar o show
             
             if (micToggle.checked) startVoiceRecognition();
         };
