@@ -148,8 +148,8 @@
         #touch-next { position: absolute; right: 0; width: 70%; top: 60px; bottom: 100px; z-index: 10; }
 
         /* --- NAVBAR --- */
-        .navbar-capsule { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--nav-bg); border-radius: 50px; display: flex; padding: 8px 20px; gap: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); z-index: 150; border: 1px solid #2a2a2c; align-items: center; }
-        .nav-btn { background: none; border: none; color: #fff; display: flex; flex-direction: column; align-items: center; min-width: 60px; cursor: pointer; padding: 8px 0; border-radius: 35px; }
+        .navbar-capsule { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--nav-bg); border-radius: 50px; display: flex; padding: 8px 15px; gap: 10px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); z-index: 150; border: 1px solid #2a2a2c; align-items: center; }
+        .nav-btn { background: none; border: none; color: #fff; display: flex; flex-direction: column; align-items: center; min-width: 55px; cursor: pointer; padding: 8px 0; border-radius: 35px; }
         .nav-btn svg { width: 22px; height: 22px; margin-bottom: 5px; fill: none; stroke: currentColor; stroke-width: 2; }
         .nav-btn span { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #777; }
         .nav-btn.active-info { color: var(--accent); }
@@ -245,6 +245,10 @@
             <div id="stage-next">Próxima: ---</div>
         </div>
         <div class="navbar-capsule">
+            <button class="nav-btn" id="nav-listen" title="Ouvir no YouTube">
+                <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                <span>Ouvir</span>
+            </button>
             <button class="nav-btn" id="nav-notes"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span>Notas</span></button>
             <button class="nav-btn" id="nav-lyrics"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Letra</span></button>
             <button class="nav-btn" id="nav-save"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path></svg><span>Salvar</span></button>
@@ -464,6 +468,19 @@
         document.getElementById('nav-notes').onclick = () => openFS('notes');
         document.getElementById('fs-close').onclick = () => { stopAutoScroll(); fsUI.style.display = 'none'; };
         
+        // --- BOTÃO DE OUVIR (YOUTUBE) ---
+        document.getElementById('nav-listen').onclick = () => {
+            if (currentIndex >= showData.songs.length) return;
+            const songNameRaw = showData.songs[currentIndex].name;
+            // Limpa o tom do fim do nome para facilitar a busca (ex: remove " C#m")
+            const cleanName = songNameRaw.replace(/\s[A-G][#b]?m?$/i, '').trim();
+            const query = encodeURIComponent(cleanName + " official audio");
+            
+            // Abre diretamente a pesquisa no YouTube. 
+            // Em dispositivos móveis, isto costuma abrir a App do YouTube automaticamente se estiver instalada.
+            window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+        };
+
         // --- FUNÇÃO PARA CORRIGIR CARACTERES ESTRANHOS (ENCODING) DA API ---
         const fixEncoding = (str) => {
             let fixed = str;
@@ -490,13 +507,11 @@
             editorUI.style.display = 'flex';
         };
 
-        // --- LÓGICA DE BUSCA DE LETRAS INCORPORADA NO BOTÃO (Usando o código React que forneceu) ---
+        // --- LÓGICA DE BUSCA DE LETRAS INCORPORADA NO BOTÃO ---
         btnSearchWeb.onclick = async () => {
             const songNameRaw = showData.songs[currentIndex].name;
-            // Limpa o tom do fim do nome para facilitar a busca
             const cleanName = songNameRaw.replace(/\s[A-G][#b]?m?$/i, '').trim();
             
-            // Tenta adivinhar o artista e a música se o utilizador escreveu "Artista - Música"
             let defaultArtist = "";
             let defaultTitle = cleanName;
             if (cleanName.includes('-')) {
@@ -506,14 +521,13 @@
             }
 
             const artist = prompt(`Buscar letra para: ${defaultTitle}\nQual o nome do artista/banda?`, defaultArtist);
-            if (!artist) return; // Se cancelar ou deixar vazio, aborta
+            if (!artist) return;
 
             const originalBtnHtml = btnSearchWeb.innerHTML;
             btnSearchWeb.innerHTML = "⏳ BUSCANDO...";
             btnSearchWeb.disabled = true;
 
             try {
-                // Fetch exatamente como estava no código React que enviou
                 const response = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist.trim())}/${encodeURIComponent(defaultTitle)}`);
                 const data = await response.json();
                 
