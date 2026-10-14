@@ -134,6 +134,22 @@
             cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
         }
 
+        /* --- TELA DE LOGIN --- */
+        #login-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; height: 100%; box-sizing: border-box; overflow-y: auto;
+        }
+        .login-sub { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 25px; text-align: center; }
+        .login-input {
+            width: 100%; max-width: 500px; background: #111; color: #fff;
+            border: 1px solid #222; border-radius: 16px; padding: 18px;
+            font-size: 1.1rem; margin-bottom: 15px; box-sizing: border-box;
+            outline: none; font-family: inherit;
+        }
+        .login-input:focus { border-color: var(--accent); }
+        .login-error { color: #ff4400; font-size: 0.9rem; font-weight: 600; min-height: 22px; margin-bottom: 10px; text-align: center; }
+        .login-hint { color: var(--text-dim); font-size: 0.8rem; margin-top: 15px; text-align: center; }
+
         /* --- TELA DE PALCO --- */
         #app-content { display: none; width: 100%; height: 100%; position: relative; }
         #progress-header { position: absolute; top: 0; left: 0; height: 4px; background: var(--accent); width: 0%; z-index: 100; transition: width 0.3s; }
@@ -191,6 +207,19 @@
     </style>
 </head>
 <body id="body-main">
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen">
+        <h1 class="main-title">Setlist Pro</h1>
+        <div class="login-sub">Entre para acessar seus shows</div>
+
+        <input type="text" id="login-user" class="login-input" placeholder="Usuário" autocomplete="username">
+        <input type="password" id="login-pass" class="login-input" placeholder="Senha" autocomplete="current-password">
+        <div class="login-error" id="login-error" aria-live="polite"></div>
+
+        <button class="btn-go" id="btn-login">ENTRAR</button>
+        <div class="login-hint">Primeiro acesso? Digite usuário e senha para criar sua conta.</div>
+    </div>
 
     <!-- MENU HAMBÚRGUER -->
     <button id="menu-btn" aria-label="Menu">
@@ -293,7 +322,47 @@
         let scrollInterval = null;
 
         const startUI = document.getElementById('start-screen');
+        const loginUI = document.getElementById('login-screen');
         const palcoUI = document.getElementById('app-content');
+
+        // --- LOGIN ---
+        function getUsers() { return JSON.parse(localStorage.getItem('setlist_users') || "{}"); }
+
+        function enterApp() {
+            loginUI.style.display = 'none';
+            startUI.style.display = 'flex';
+        }
+
+        // Sessão existente: pula o login
+        if (localStorage.getItem('setlist_session')) {
+            enterApp();
+        } else {
+            startUI.style.display = 'none';
+        }
+
+        function doLogin() {
+            const user = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value;
+            const err = document.getElementById('login-error');
+            err.textContent = "";
+            if (!user || !pass) { err.textContent = "Preencha usuário e senha."; return; }
+
+            const users = getUsers();
+            if (users[user]) {
+                if (users[user] !== pass) { err.textContent = "Senha incorreta."; return; }
+            } else {
+                // Primeiro acesso cria a conta
+                users[user] = pass;
+                localStorage.setItem('setlist_users', JSON.stringify(users));
+            }
+            localStorage.setItem('setlist_session', user);
+            enterApp();
+            toast("Bem-vindo, " + user + "!");
+        }
+
+        document.getElementById('btn-login').onclick = doLogin;
+        document.getElementById('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
         const fsUI = document.getElementById('fs-view');
         const editorUI = document.getElementById('editor-modal');
         const fsContent = document.getElementById('fs-main-content');
