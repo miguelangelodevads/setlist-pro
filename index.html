@@ -75,6 +75,14 @@
         .menu-title { font-size: 1.2rem; font-weight: 900; color: var(--accent); margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid #222; padding-bottom: 10px; }
         
         .menu-list { overflow-y: auto; max-height: calc(100% - 100px); }
+
+        .btn-logout {
+            position: absolute; bottom: 25px; left: 20px; right: 20px;
+            padding: 15px; border-radius: 12px; border: 1px solid #333;
+            background: #181818; color: #ff4400; font-weight: 900; font-size: 0.95rem;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-logout:active { background: #222; }
         .menu-item {
             padding: 15px; background: #181818; border-radius: 12px; margin-bottom: 10px;
             cursor: pointer; border: 1px solid #222; transition: 0.2s;
@@ -233,6 +241,7 @@
     <div id="side-menu">
         <div class="menu-title">Shows Salvos</div>
         <div class="menu-list" id="menu-list"></div>
+        <button class="btn-logout" id="btn-logout">Sair da Conta</button>
     </div>
 
     <!-- TELA INICIAL -->
@@ -438,6 +447,18 @@
         };
 
         menuOverlay.onclick = () => { sideMenu.classList.remove('open'); menuOverlay.style.display = 'none'; };
+
+        // --- SAIR DA CONTA ---
+        document.getElementById('btn-logout').onclick = () => {
+            localStorage.removeItem('setlist_session');
+            sideMenu.classList.remove('open');
+            menuOverlay.style.display = 'none';
+            startUI.style.display = 'none';
+            palcoUI.style.display = 'none';
+            loginUI.style.display = 'flex';
+            document.getElementById('login-pass').value = "";
+            document.getElementById('login-error').textContent = "";
+        };
 
         function renderMenuList() {
             const list = JSON.parse(localStorage.getItem('saved_setlists_pro') || "[]");
